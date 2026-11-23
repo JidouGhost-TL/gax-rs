@@ -10,6 +10,8 @@ The **GAX Sound Engine** was created by Manfred Linzner and Bernhard Wodok at **
 
 `gax-rs` provides a clean-room, reverse-engineered implementation designed for audio preservation, DAWs, PC source ports, and emulators.
 
+> **Looking for a ready-to-use CLI?** You can scan GBA ROMs, extract WAV samples, and compile SoundFont 2.04 (`.sf2`) banks directly from the command line using our **[gbakit](https://github.com/JidouGhost-TL/gbakit)** toolkit (`gbakit audio scan`, `gbakit audio export`, `gbakit audio soundfont`).
+
 ---
 
 ## Features
