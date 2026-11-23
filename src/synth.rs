@@ -223,13 +223,178 @@ impl AccuracySynth {
     }
 
     /// Mix a voice playing a borrowed sample view into stereo 8-bit DMA ring buffers.
+    ///
+    /// Transparently decodes unsigned 8-bit PCM (`b ^ 0x80`) when `sample.is_unsigned` is set.
     pub fn mix_voice_view(
         sample: &GaxSampleView<'_>,
         voice: &mut GaxVoice,
         out_left: &mut [i8],
         out_right: &mut [i8],
     ) {
-        Self::mix_voice_pcm8(sample.pcm_data, voice, out_left, out_right);
+        if !sample.is_unsigned {
+            Self::mix_voice_pcm8(sample.pcm_data, voice, out_left, out_right);
+            return;
+        }
+        if !voice.is_active || sample.is_empty() {
+            return;
+        }
+        let len = out_left.len().min(out_right.len());
+        if len == 0 {
+            return;
+        }
+        let pcm_len = sample.len();
+        let l_pan = (128 - voice.pan as i32) * (voice.volume as i32);
+        let r_pan = (voice.pan as i32) * (voice.volume as i32);
+
+        for i in 0..len {
+            let int_pos = (voice.position_fixed >> 12) as usize;
+            if int_pos >= pcm_len {
+                voice.is_active = false;
+                break;
+            }
+            let s = sample.sample_i8(int_pos) as i32;
+            let l_sample = ((s * l_pan) >> 13) as i8;
+            let r_sample = ((s * r_pan) >> 13) as i8;
+            out_left[i] = out_left[i].saturating_add(l_sample);
+            out_right[i] = out_right[i].saturating_add(r_sample);
+            voice.position_fixed = voice.position_fixed.wrapping_add(voice.pitch_step);
+        }
+        if (voice.position_fixed >> 12) as usize >= pcm_len {
+            voice.is_active = false;
+        }
+    }
+
+    /// Bit-exact GAX v1.x ARM voice mixer (`0x08021dc8` overwrite / `0x08021eb4` accumulate).
+    ///
+    /// - Fetches signed 8-bit PCM (`ldrsb`) using Q21.11 fixed-point position (`pos_fixed >> 11`, 1.0x = `0x800`).
+    /// - Scales each sample via `(s * volume) >> 8` (arithmetic shift right).
+    /// - Overwrites or accumulates (wrapping 16-bit) into `out_acc`.
+    pub fn mix_v1_voice_i16(
+        pcm_data: &[i8],
+        pos_fixed: &mut i32,
+        pitch_step: i32,
+        volume: i32,
+        out_acc: &mut [i16],
+        accumulate: bool,
+    ) {
+        let end_fixed = (pcm_data.len() as i32) << 11;
+        let mut pos = *pos_fixed;
+        for slot in out_acc.iter_mut() {
+            if pos >= end_fixed {
+                break;
+            }
+            let idx = (pos >> 11) as usize;
+            let s = pcm_data[idx] as i32;
+            let scaled = (s * volume) >> 8;
+            if accumulate {
+                *slot = (*slot as i32).wrapping_add(scaled) as i16;
+            } else {
+                *slot = scaled as i16;
+            }
+            pos = pos.wrapping_add(pitch_step);
+        }
+        *pos_fixed = pos;
+    }
+
+    /// Bit-exact GAX v1.x ARM master-volume & DirectSound 8-bit clamp routine (`0x08021c90`).
+    ///
+    /// Computes `((acc[i] as i32) * master_vol) >> 10` and clamps to `[-128, 127]`.
+    pub fn clamp_v1_i16_to_dma8(acc: &[i16], out_dma: &mut [i8], master_vol: i32) {
+        let len = acc.len().min(out_dma.len());
+        for i in 0..len {
+            let v = ((acc[i] as i32) * master_vol) >> 10;
+            out_dma[i] = v.clamp(-128, 127) as i8;
+        }
+    }
+
+    /// Bit-exact GAX v3.x ARM voice mixer (`0x080477bc` in v3.01 / `0x0801c23c` in v3.05).
+    ///
+    /// - Fetches unsigned 8-bit PCM (`ldrb`, `0x80` center) using Q21.11 fixed-point position
+    ///   (`pos_fixed >> 11`, 1.0x = `0x800`), wrapping by `loop_len_fixed` when reaching `pcm_u8.len() << 11`.
+    /// - Scales each unsigned sample via `(u * volume) >> 3` (matching packed 2x16-bit SIMD `mul` + `bic #0x70000` + `lsr #3`)
+    ///   and accumulates into the 16-bit unsigned intermediate buffer `out_acc`.
+    pub fn mix_v3_voice_u16(
+        pcm_u8: &[u8],
+        pos_fixed: &mut u32,
+        pitch_step: u32,
+        volume: u32,
+        loop_len_fixed: u32,
+        out_acc: &mut [u16],
+    ) {
+        if pcm_u8.is_empty() {
+            return;
+        }
+        let end_fixed = (pcm_u8.len() as u32) << 11;
+        let mut pos = *pos_fixed;
+        for slot in out_acc.iter_mut() {
+            let idx = (pos >> 11) as usize;
+            let u = pcm_u8[idx] as u32;
+            let scaled = ((u * volume) >> 3) as u16;
+            *slot = slot.wrapping_add(scaled);
+            pos = pos.wrapping_add(pitch_step);
+            if pos >= end_fixed && loop_len_fixed > 0 {
+                pos -= loop_len_fixed;
+            }
+        }
+        *pos_fixed = pos;
+    }
+
+    /// Bit-exact GAX v3.x ARM voice mixer operating directly on a `GaxSampleView`.
+    pub fn mix_v3_voice_view_u16(
+        sample: &GaxSampleView<'_>,
+        pos_fixed: &mut u32,
+        pitch_step: u32,
+        volume: u32,
+        loop_len_fixed: u32,
+        out_acc: &mut [u16],
+    ) {
+        if sample.is_empty() {
+            return;
+        }
+        if sample.is_unsigned {
+            Self::mix_v3_voice_u16(
+                sample.as_bytes(),
+                pos_fixed,
+                pitch_step,
+                volume,
+                loop_len_fixed,
+                out_acc,
+            );
+            return;
+        }
+        let end_fixed = (sample.len() as u32) << 11;
+        let mut pos = *pos_fixed;
+        for slot in out_acc.iter_mut() {
+            let idx = (pos >> 11) as usize;
+            let u = sample.sample_u8(idx) as u32;
+            let scaled = ((u * volume) >> 3) as u16;
+            *slot = slot.wrapping_add(scaled);
+            pos = pos.wrapping_add(pitch_step);
+            if pos >= end_fixed && loop_len_fixed > 0 {
+                pos -= loop_len_fixed;
+            }
+        }
+        *pos_fixed = pos;
+    }
+
+    /// Bit-exact GAX v3.x ARM DC-bias subtraction & DirectSound 8-bit clamp routine
+    /// (`0x080474c0` in v3.01 / `0x0801bf40` in v3.05).
+    ///
+    /// Subtracts `total_volume << 4` (the accumulated `0x80` unsigned center bias across all mixed voices),
+    /// clamps to `[-0xFE1, +0xFE0]` (`cmn #0xfe0; mvnlt #0xfe0; cmp #0xfe0; movgt #0xfe0`),
+    /// and arithmetically shifts right by 5 bits (`asr #5`) into signed DirectSound 8-bit PCM.
+    pub fn clamp_v3_u16_to_dma8(acc: &[u16], out_dma: &mut [i8], total_volume: u32) {
+        let len = acc.len().min(out_dma.len());
+        let bias = (total_volume << 4) as i32;
+        for i in 0..len {
+            let mut x = (acc[i] as i32) - bias;
+            if x < -0xFE0 {
+                x = !0xFE0; // -0xFE1 -> (-4065 >> 5) == -128
+            } else if x > 0xFE0 {
+                x = 0xFE0; // +4064 -> (+4064 >> 5) == +127
+            }
+            out_dma[i] = (x >> 5) as i8;
+        }
     }
 
     /// Mix active voices from a slice into stereo 8-bit DMA ring buffers using borrowed sample views.
@@ -246,7 +411,7 @@ impl AccuracySynth {
                 continue;
             }
             if let Some(sample) = samples.iter().find(|s| s.id == voice.sample_id) {
-                Self::mix_voice_pcm8(sample.pcm_data, voice, out_left, out_right);
+                Self::mix_voice_view(sample, voice, out_left, out_right);
             }
         }
     }

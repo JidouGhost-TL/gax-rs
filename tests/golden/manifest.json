@@ -4,6 +4,7 @@
     "v1_iridion3d_sample0": {
       "title": "Iridion 3D",
       "version": "V1",
+      "pcm_format": "signed_i8",
       "filename": "v1_iridion3d_sample0.pcm",
       "size": 6688,
       "sha256": "38c1192087f4a2b7b3fc66b6969bb17457349c0731c2449ad73f9151f9aa446f",
@@ -13,6 +14,7 @@
     "v3_crash2_sample0": {
       "title": "Crash Bandicoot 2: N-Tranced",
       "version": "V3",
+      "pcm_format": "unsigned_u8_bias_0x80",
       "filename": "v3_crash2_sample0.pcm",
       "size": 5874,
       "sha256": "3508d67a1221f4c36ee3a8296f2dd59ccca3915deb726acc34207011c8f36b46",
@@ -22,11 +24,119 @@
     "v305_iridion2_sample0": {
       "title": "Iridion II",
       "version": "V3",
+      "pcm_format": "unsigned_u8_bias_0x80",
       "filename": "v305_iridion2_sample0.pcm",
       "size": 2625,
       "sha256": "7ed226f05bfa58103e08ec17e7f96632fdbefd0e70c9a9605a3ecdd9e9c5227a",
       "sample_index": 0,
       "sample_rate": 53946
+    }
+  },
+  "arm_mixer_goldens": {
+    "v1_iridion3d_mix_1to1": {
+      "title": "Iridion 3D",
+      "version": "V1",
+      "filename": "v1_iridion3d_mix_1to1.bin",
+      "size": 256,
+      "sha256": "874ba83241d16dd59d737a5f3b0e0f45b805c8e6f35974c628200a518dc875ef",
+      "arm_mix_addr": "0x08021DC8",
+      "arm_clamp_addr": "0x08021C90",
+      "pitch_step_q11": "0x0800",
+      "volumes": [256, 128],
+      "master_vol": 1024,
+      "frames_per_channel": 128
+    },
+    "v1_iridion3d_mix_resampled": {
+      "title": "Iridion 3D",
+      "version": "V1",
+      "filename": "v1_iridion3d_mix_resampled.bin",
+      "size": 256,
+      "sha256": "97e5d067ff9e986c7c7b9c770034725616d1ae106f9a26f13bcdd94cee7e91fb",
+      "arm_mix_addr": "0x08021DC8",
+      "arm_clamp_addr": "0x08021C90",
+      "pitch_step_q11": "0x0C80",
+      "volumes": [200, 100],
+      "master_vol": 1024,
+      "frames_per_channel": 128
+    },
+    "v1_iridion3d_mix_clamped": {
+      "title": "Iridion 3D",
+      "version": "V1",
+      "filename": "v1_iridion3d_mix_clamped.bin",
+      "size": 128,
+      "sha256": "8a95465157c3df3fb404ba4089e1f840219be7603cf3eedf0ded9ab7233c48f7",
+      "arm_mix_addr": "0x08021EB4",
+      "arm_clamp_addr": "0x08021C90",
+      "pitch_step_q11": "0x0800",
+      "volumes": [384, 384],
+      "master_vol": 1024,
+      "frames": 128
+    },
+    "v3_crash2_mix_1to1": {
+      "title": "Crash Bandicoot 2: N-Tranced",
+      "version": "V3",
+      "filename": "v3_crash2_mix_1to1.bin",
+      "size": 256,
+      "sha256": "aeed2c9354daccf024cdd37d04271fa87a0ecb67e09f868083c8929fa1839eac",
+      "arm_mix_addr": "0x080477BC",
+      "arm_clamp_addr": "0x080474C0",
+      "start_sample": 3328,
+      "pitch_step_q11": "0x0800",
+      "volumes": [255, 128],
+      "frames_per_channel": 128
+    },
+    "v3_crash2_mix_resampled": {
+      "title": "Crash Bandicoot 2: N-Tranced",
+      "version": "V3",
+      "filename": "v3_crash2_mix_resampled.bin",
+      "size": 256,
+      "sha256": "58f2da55b140022bea1e2216be416b17d5bdf99b122598655842609efeae25c9",
+      "arm_mix_addr": "0x080477BC",
+      "arm_clamp_addr": "0x080474C0",
+      "start_sample": 3328,
+      "pitch_step_q11": "0x0B40",
+      "volumes": [200, 96],
+      "frames_per_channel": 128
+    },
+    "v3_crash2_mix_clamped": {
+      "title": "Crash Bandicoot 2: N-Tranced",
+      "version": "V3",
+      "filename": "v3_crash2_mix_clamped.bin",
+      "size": 128,
+      "sha256": "ef8bef6a57b8f30b2e6aeccd81779bb2582baafd50446828339fc1f9a0184a8e",
+      "arm_mix_addr": "0x080477BC",
+      "arm_clamp_addr": "0x080474C0",
+      "start_sample": 3328,
+      "pitch_step_q11": "0x0800",
+      "volumes": [255, 255],
+      "total_volume": 510,
+      "frames": 128
+    },
+    "v305_iridion2_mix_1to1": {
+      "title": "Iridion II",
+      "version": "V3",
+      "filename": "v305_iridion2_mix_1to1.bin",
+      "size": 256,
+      "sha256": "074c23eda8f70b447107e9f70a7e2c30e8632f7d97b9b48366993860b61881f5",
+      "arm_mix_addr": "0x0801C23C",
+      "arm_clamp_addr": "0x0801BF40",
+      "start_sample": 1664,
+      "pitch_step_q11": "0x0800",
+      "volumes": [255, 160],
+      "frames_per_channel": 128
+    },
+    "v305_iridion2_mix_resampled": {
+      "title": "Iridion II",
+      "version": "V3",
+      "filename": "v305_iridion2_mix_resampled.bin",
+      "size": 256,
+      "sha256": "283bc3c809ae86d4554416ec78eedb5b6ef14a6f99770f051e8a5f267772de3d",
+      "arm_mix_addr": "0x0801C23C",
+      "arm_clamp_addr": "0x0801BF40",
+      "start_sample": 1664,
+      "pitch_step_q11": "0x0640",
+      "volumes": [220, 110],
+      "frames_per_channel": 128
     }
   },
   "streams": {
