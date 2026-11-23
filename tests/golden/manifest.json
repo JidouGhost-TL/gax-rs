@@ -1,0 +1,64 @@
+{
+  "description": "Golden reference fixtures for Shin'en GAX Sound Engine (gax-rs)",
+  "samples": {
+    "v1_iridion3d_sample0": {
+      "title": "Iridion 3D",
+      "version": "V1",
+      "filename": "v1_iridion3d_sample0.pcm",
+      "size": 6688,
+      "sha256": "38c1192087f4a2b7b3fc66b6969bb17457349c0731c2449ad73f9151f9aa446f",
+      "sample_index": 0,
+      "sample_rate": 42260
+    },
+    "v3_crash2_sample0": {
+      "title": "Crash Bandicoot 2: N-Tranced",
+      "version": "V3",
+      "filename": "v3_crash2_sample0.pcm",
+      "size": 5874,
+      "sha256": "3508d67a1221f4c36ee3a8296f2dd59ccca3915deb726acc34207011c8f36b46",
+      "sample_index": 0,
+      "sample_rate": 82241
+    },
+    "v305_iridion2_sample0": {
+      "title": "Iridion II",
+      "version": "V3",
+      "filename": "v305_iridion2_sample0.pcm",
+      "size": 2625,
+      "sha256": "7ed226f05bfa58103e08ec17e7f96632fdbefd0e70c9a9605a3ecdd9e9c5227a",
+      "sample_index": 0,
+      "sample_rate": 53946
+    }
+  },
+  "streams": {
+    "v1_iridion3d_stream": {
+      "title": "Iridion 3D",
+      "version": "V1",
+      "filename": "v1_iridion3d_ram_stream.pcm",
+      "size": 256,
+      "sha256": "c83ae21b45f9e1406d31ca44b4b4ff9c1c5e651ed996d0a97b0a51ad03ea661f",
+      "frame": 480,
+      "ram_addr": "0x03002C9C",
+      "sample_rate": 42260
+    },
+    "v3_crash2_stream": {
+      "title": "Crash Bandicoot 2: N-Tranced",
+      "version": "V3",
+      "filename": "v3_crash2_ram_stream.pcm",
+      "size": 256,
+      "sha256": "d802378534d14406cd7ff855483b2129078e2dd0911e37a10a62b06c3f9bc72d",
+      "frame": 50,
+      "ram_addr": "0x03003660",
+      "sample_rate": 82241
+    },
+    "v305_iridion2_stream": {
+      "title": "Iridion II",
+      "version": "V3",
+      "filename": "v305_iridion2_ram_stream.pcm",
+      "size": 256,
+      "sha256": "0ef4f4a8a5c96dcea22ffc6131ee0b8ab30df7e477f3e0dfa85b35d0a02ae1d5",
+      "frame": 200,
+      "ram_addr": "0x03001684",
+      "sample_rate": 53946
+    }
+  }
+}
