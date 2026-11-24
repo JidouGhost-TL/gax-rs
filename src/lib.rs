@@ -13,6 +13,25 @@
 //!   - `AccuracySynth`: Bit-exact fixed-point software mixer matching the ARM driver's DMA ring buffer.
 //!   - `StudioSynth`: Audiophile 48 kHz 32-bit floating point rendering with band-limited sinc interpolation.
 //! - Golden test suite verified against cycle-accurate mGBA ARM driver execution traces.
+//!
+//! ## Quickstart
+//!
+//! ```rust
+//! use gax::{AccuracySynth, GaxSampleView, GaxVoice};
+//!
+//! // Wrap ROM bytes directly without heap allocation (`#![no_std]`)
+//! let pcm_bytes: &[u8] = &[0x00, 0x10, 0x20, 0x10, 0x00, 0xF0, 0xE0, 0xF0];
+//! let sample = GaxSampleView::from_raw_bytes(0, 18158, pcm_bytes);
+//!
+//! // 1:1 pitch step (0x1000), full volume (128), centered pan (64)
+//! let mut voice = GaxVoice::new(0, 0x1000, 128, 64);
+//! let mut dma_left = [0i8; 8];
+//! let mut dma_right = [0i8; 8];
+//!
+//! AccuracySynth::mix_voice_view(&sample, &mut voice, &mut dma_left, &mut dma_right);
+//! assert_eq!(dma_left[2], 0x20);
+//! assert_eq!(dma_right[2], 0x20);
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unsafe_code)]

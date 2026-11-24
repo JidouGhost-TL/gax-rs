@@ -57,7 +57,7 @@ pub const GAX_FREQ_TABLE: &[(u32, u32)] = &[
 ];
 
 /// A single active playback voice in the GAX software synthesizer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct GaxVoice {
     pub sample_id: u32,
     /// Fixed-point position in sample: integer part in high bits, 12-bit fractional phase in low bits.
@@ -110,13 +110,18 @@ impl AccuracySynth {
     }
 
     /// Convert a sample rate in Hz to the GBA 16.78 MHz timer reload constant.
+    ///
+    /// Returns `0` if `rate == 0`.
     pub fn timer_reload_for_rate(rate: u32) -> u16 {
+        if rate == 0 {
+            return 0;
+        }
         for &(r, cycles) in GAX_FREQ_TABLE {
             if r == rate {
                 return (65536u32 - cycles) as u16;
             }
         }
-        let cycles = (16_777_216u32 + rate / 2) / rate;
+        let cycles = 16_777_216u32.saturating_add(rate / 2) / rate;
         (65536u32.saturating_sub(cycles)) as u16
     }
 
@@ -277,15 +282,18 @@ impl AccuracySynth {
         out_acc: &mut [i16],
         accumulate: bool,
     ) {
-        let end_fixed = (pcm_data.len() as i32) << 11;
+        let pcm_len = pcm_data.len();
         let mut pos = *pos_fixed;
         for slot in out_acc.iter_mut() {
-            if pos >= end_fixed {
+            if pos < 0 {
                 break;
             }
             let idx = (pos >> 11) as usize;
+            if idx >= pcm_len {
+                break;
+            }
             let s = pcm_data[idx] as i32;
-            let scaled = (s * volume) >> 8;
+            let scaled = s.wrapping_mul(volume) >> 8;
             if accumulate {
                 *slot = (*slot as i32).wrapping_add(scaled) as i16;
             } else {
@@ -302,7 +310,7 @@ impl AccuracySynth {
     pub fn clamp_v1_i16_to_dma8(acc: &[i16], out_dma: &mut [i8], master_vol: i32) {
         let len = acc.len().min(out_dma.len());
         for i in 0..len {
-            let v = ((acc[i] as i32) * master_vol) >> 10;
+            let v = (acc[i] as i32).wrapping_mul(master_vol) >> 10;
             out_dma[i] = v.clamp(-128, 127) as i8;
         }
     }
@@ -324,16 +332,24 @@ impl AccuracySynth {
         if pcm_u8.is_empty() {
             return;
         }
-        let end_fixed = (pcm_u8.len() as u32) << 11;
+        let pcm_len = pcm_u8.len();
+        let end_fixed = (pcm_len.min((u32::MAX >> 11) as usize) as u32) << 11;
         let mut pos = *pos_fixed;
         for slot in out_acc.iter_mut() {
             let idx = (pos >> 11) as usize;
+            if idx >= pcm_len {
+                break;
+            }
             let u = pcm_u8[idx] as u32;
-            let scaled = ((u * volume) >> 3) as u16;
+            let scaled = (u.wrapping_mul(volume) >> 3) as u16;
             *slot = slot.wrapping_add(scaled);
             pos = pos.wrapping_add(pitch_step);
             if pos >= end_fixed && loop_len_fixed > 0 {
-                pos -= loop_len_fixed;
+                pos = pos.wrapping_sub(loop_len_fixed);
+                if pos >= end_fixed && loop_len_fixed <= end_fixed {
+                    let loop_start = end_fixed - loop_len_fixed;
+                    pos = loop_start + ((pos - loop_start) % loop_len_fixed);
+                }
             }
         }
         *pos_fixed = pos;
@@ -362,16 +378,24 @@ impl AccuracySynth {
             );
             return;
         }
-        let end_fixed = (sample.len() as u32) << 11;
+        let pcm_len = sample.len();
+        let end_fixed = (pcm_len.min((u32::MAX >> 11) as usize) as u32) << 11;
         let mut pos = *pos_fixed;
         for slot in out_acc.iter_mut() {
             let idx = (pos >> 11) as usize;
+            if idx >= pcm_len {
+                break;
+            }
             let u = sample.sample_u8(idx) as u32;
-            let scaled = ((u * volume) >> 3) as u16;
+            let scaled = (u.wrapping_mul(volume) >> 3) as u16;
             *slot = slot.wrapping_add(scaled);
             pos = pos.wrapping_add(pitch_step);
             if pos >= end_fixed && loop_len_fixed > 0 {
-                pos -= loop_len_fixed;
+                pos = pos.wrapping_sub(loop_len_fixed);
+                if pos >= end_fixed && loop_len_fixed <= end_fixed {
+                    let loop_start = end_fixed - loop_len_fixed;
+                    pos = loop_start + ((pos - loop_start) % loop_len_fixed);
+                }
             }
         }
         *pos_fixed = pos;
@@ -385,9 +409,9 @@ impl AccuracySynth {
     /// and arithmetically shifts right by 5 bits (`asr #5`) into signed DirectSound 8-bit PCM.
     pub fn clamp_v3_u16_to_dma8(acc: &[u16], out_dma: &mut [i8], total_volume: u32) {
         let len = acc.len().min(out_dma.len());
-        let bias = (total_volume << 4) as i32;
+        let bias = total_volume.wrapping_shl(4) as i32;
         for i in 0..len {
-            let mut x = (acc[i] as i32) - bias;
+            let mut x = (acc[i] as i32).wrapping_sub(bias);
             if x < -0xFE0 {
                 x = !0xFE0; // -0xFE1 -> (-4065 >> 5) == -128
             } else if x > 0xFE0 {
@@ -499,7 +523,7 @@ impl AccuracySynth {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StudioSynth {
     pub sample_rate: u32,
     pub sinc_quality: u8,
@@ -585,5 +609,27 @@ mod tests {
         assert_eq!(left[1], -40);
         assert_eq!(right[1], -40);
         assert!(!voices[0].is_active);
+    }
+
+    #[test]
+    fn test_malformed_inputs_do_not_panic() {
+        assert_eq!(AccuracySynth::timer_reload_for_rate(0), 0);
+        let _ = AccuracySynth::timer_reload_for_rate(u32::MAX);
+
+        let pcm_i8 = [10i8, 20, 30, 40];
+        let mut neg_pos = -4096i32;
+        let mut acc_i16 = [0i16; 8];
+        AccuracySynth::mix_v1_voice_i16(&pcm_i8, &mut neg_pos, 0x0800, i32::MAX, &mut acc_i16, false);
+
+        let pcm_u8 = [0x80u8, 0x90, 0xA0, 0xB0];
+        let mut oob_pos = 100u32 << 11;
+        let mut acc_u16 = [0u16; 8];
+        AccuracySynth::mix_v3_voice_u16(&pcm_u8, &mut oob_pos, 0x0800, u32::MAX, 0, &mut acc_u16);
+
+        let mut oneshot_pos = 0u32;
+        AccuracySynth::mix_v3_voice_u16(&pcm_u8, &mut oneshot_pos, 0x0800, 255, 0, &mut acc_u16);
+
+        let mut dma = [0i8; 8];
+        AccuracySynth::clamp_v3_u16_to_dma8(&acc_u16, &mut dma, u32::MAX);
     }
 }

@@ -3,7 +3,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GaxEvent {
     NoteOn { channel: u8, note: u8, velocity: u8 },
     NoteOff { channel: u8 },
@@ -14,14 +14,14 @@ pub enum GaxEvent {
     End,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct GaxPattern {
     pub id: u32,
     #[cfg(feature = "alloc")]
     pub events: Vec<GaxEvent>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct GaxSong {
     pub id: u32,
     pub title: &'static str,

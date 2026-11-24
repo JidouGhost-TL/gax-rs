@@ -12,7 +12,7 @@ use crate::version::GaxVersion;
 /// Tracks whether the underlying ROM bytes are unsigned 8-bit PCM (GAX v3.x, `0x80` center)
 /// or signed 8-bit PCM (GAX v1.x/v2.x, `0x00` center), decoding `b ^ 0x80` transparently
 /// when accessing centered signed sample values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GaxSampleView<'a> {
     pub id: u32,
     pub sample_rate: u32,
@@ -184,7 +184,7 @@ impl<'a> GaxSampleView<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct GaxSample {
     pub id: u32,
     pub sample_rate: u32,

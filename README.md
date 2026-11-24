@@ -3,7 +3,7 @@
 **Zero-dependency, pure Rust parser, software synthesizer, and golden-tested emulator for the Shin'en GAX Sound Engine (Game Boy Advance).**
 
 [![Crates.io](https://img.shields.io/crates/v/gax.svg)](https://crates.io/crates/gax)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 [![no_std](https://img.shields.io/badge/no__std-compatible-success.svg)](#features)
 
 The **GAX Sound Engine** was created by Manfred Linzner and Bernhard Wodok at **Shin'en Multimedia**. Known for its incredible CPU efficiency (~11% CPU load, <2 KB RAM) and rich multi-channel sound, it powered over 100 commercial GBA titles, including *Iridion 3D*, *Iridion II*, *Crash Bandicoot 2: N-Tranced*, *Payback*, and *Maya the Bee*.
@@ -57,9 +57,22 @@ AccuracySynth::mix_voice_view(&sample, &mut voice, &mut dma_left, &mut dma_right
 ## Golden Test Methodology
 
 To ensure 100% mathematical accuracy without guesswork:
-1. **Tier 1 (Bit-Exact PCM)**: Reference samples extracted directly from ROM are compared against mGBA memory dumps.
-2. **Tier 2 (Sequencer State Transitions)**: Active channels, note pitches, ADSR levels, and loop triggers are asserted against the ARM driver's RAM state at every 60 Hz frame.
-3. **Tier 3 (End-to-End Stream Correlation)**: The software mixer output is correlated against raw PCM dumped from hardware DMA registers (`REG_FIFO_A` and `REG_FIFO_B`).
+1. **Tier 1 (Version-Aware PCM & Continuity)**: 3 reference sample fixtures across GAX v1.99d (*Iridion 3D*, signed `i8`), v3.01 (*Crash Bandicoot 2: N-Tranced*, unsigned `0x80`-centered), and v3.05 (*Iridion II*, unsigned `0x80`-centered).
+2. **Tier 2 (Timer Reload & Version Detection)**: Hardware timer reload math (`GAX_FREQ_TABLE`) and ROM version signature detection (`GaxVersion::detect_from_bytes`).
+3. **Tier 3 (1,792 / 1,792 Byte-Exact mGBA ARM Mixer Goldens)**: 8 controlled ARM execution vectors (`1,792` output bytes, SHA-256 manifest in `tests/golden/manifest.json`) verified strictly byte-for-byte (`assert_eq!`) across GAX v1.99d, v3.01, and v3.05 (1:1 pitch, resampled pitch, and multi-voice saturation clamping), plus 3 hardware RAM stream captures.
+
+---
+
+## Benchmarks
+
+```sh
+cargo bench --bench bench_audio
+```
+
+| Benchmark | Throughput |
+| --- | ---: |
+| `AccuracySynth::mix_voice_pcm8` (1:1 pitch, 1,024f) | ~2.34 GSamples/s |
+| `AccuracySynth::mix_voice_pcm8` (resampled `0x1500`, 1,024f) | ~522 MSamples/s |
 
 ---
 
